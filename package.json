@@ -3,6 +3,11 @@
   "displayName": "Kratos Proto Generator",
   "description": "Generate proto files for Kratos framework",
   "version": "0.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:linkkong/kratos-generator.git"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -17,14 +22,41 @@
     "commands": [
       {
         "command": "kratos-proto-generator.generateProto",
-        "title": "Generate Proto"
+        "title": "生成 Proto 客户端"
+      },
+      {
+        "command": "kratos-proto-generator.generateService",
+        "title": "生成 Service 服务端"
+      },
+      {
+        "command": "kratos-proto-generator.generateConfig",
+        "title": "生成配置文件"
+      },
+      {
+        "command": "kratos-proto-generator.runWire",
+        "title": "执行 wire"
       }
     ],
     "menus": {
       "explorer/context": [
         {
-          "when": "resourceFilename =~ /\\.proto$/ && resourcePath =~ /^api/",
+          "when": "resourceFilename =~ /\\.proto$/ && !(resourceFilename =~ /conf\\.proto$/)",
           "command": "kratos-proto-generator.generateProto",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceFilename =~ /\\.proto$/ && !(resourceFilename =~ /conf\\.proto$/)",
+          "command": "kratos-proto-generator.generateService",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceFilename =~ /conf\\.proto$/",
+          "command": "kratos-proto-generator.generateConfig",
+          "group": "navigation"
+        },
+        {
+          "when": "resourcePath =~ /^cmd\\/[^/]+$/",
+          "command": "kratos-proto-generator.runWire",
           "group": "navigation"
         }
       ]
