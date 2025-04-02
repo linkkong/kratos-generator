@@ -1,0 +1,82 @@
+{
+  "name": "kratos-proto-generator",
+  "displayName": "Kratos Proto Generator",
+  "description": "Kratos 框架的 Proto 文件生成器",
+  "version": "0.0.1",
+  "publisher": "menglingkong",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:linkkong/kratos-generator.git"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:kratos-proto-generator.generateProto"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "kratos-proto-generator.generateProto",
+        "title": "生成 Proto 客户端"
+      },
+      {
+        "command": "kratos-proto-generator.generateService",
+        "title": "生成 Service 服务端"
+      },
+      {
+        "command": "kratos-proto-generator.generateConfig",
+        "title": "生成配置文件"
+      },
+      {
+        "command": "kratos-proto-generator.runWire",
+        "title": "执行 wire"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "when": "resourceFilename =~ /\\.proto$/ && !(resourceFilename =~ /conf\\.proto$/)",
+          "command": "kratos-proto-generator.generateProto",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceFilename =~ /\\.proto$/ && !(resourceFilename =~ /conf\\.proto$/)",
+          "command": "kratos-proto-generator.generateService",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceFilename =~ /conf\\.proto$/",
+          "command": "kratos-proto-generator.generateConfig",
+          "group": "navigation"
+        },
+        {
+          "when": "explorerResourceIsFolder && resourcePath =~ /cmd\\/[^/]+$/",
+          "command": "kratos-proto-generator.runWire",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0",
+    "@types/node": "^16.11.7",
+    "@typescript-eslint/eslint-plugin": "^5.42.0",
+    "@typescript-eslint/parser": "^5.42.0",
+    "eslint": "^8.26.0",
+    "typescript": "^4.8.4"
+  }
+} 
