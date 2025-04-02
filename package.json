@@ -55,7 +55,7 @@
           "group": "navigation"
         },
         {
-          "when": "resourcePath =~ /^cmd\\/[^/]+$/",
+          "when": "resourcePath =~ /cmd/",
           "command": "kratos-proto-generator.runWire",
           "group": "navigation"
         }

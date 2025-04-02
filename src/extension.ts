@@ -109,14 +109,20 @@ export function activate(context: vscode.ExtensionContext) {
     // 执行 wire 命令
     let runWireDisposable = vscode.commands.registerCommand('kratos-proto-generator.runWire', async (uri: vscode.Uri) => {
         try {
+            // 在这里设置断点，查看 uri 的值
+            console.log('Wire command triggered with URI:', uri.fsPath);
+            
             const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
             if (!workspaceFolder) {
                 throw new Error('No workspace folder found');
             }
 
-            // 获取 cmd 目录下的子目录路径
-            const cmdPath = path.join(workspaceFolder.uri.fsPath, 'cmd');
-            const targetDir = path.dirname(uri.fsPath);
+            // 获取目标目录路径
+            const targetDir = uri.fsPath;
+
+            // 在这里设置断点，查看路径信息
+            console.log('Workspace folder:', workspaceFolder.uri.fsPath);
+            console.log('Target directory:', targetDir);
 
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
