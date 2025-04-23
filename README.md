@@ -33,6 +33,8 @@
    - "生成 Service 服务端" - 生成 service 服务端代码
 4. 选择需要的选项，等待命令执行完成
 
+![生成 Proto 和 Service 代码](https://raw.githubusercontent.com/linkkong/kratos-generator/main/proto.png)
+
 ### 生成配置文件
 
 1. 在 VSCode 中打开包含 `conf.proto` 文件的项目
@@ -40,12 +42,16 @@
 3. 右键点击文件，选择 "生成配置文件"
 4. 等待 `make config` 命令执行完成
 
+![生成配置文件](https://raw.githubusercontent.com/linkkong/kratos-generator/main/conf.png)
+
 ### 执行 Wire 命令
 
 1. 在 VSCode 中打开项目
 2. 在文件浏览器中找到 `cmd` 目录下的任意子目录
 3. 右键点击目录，选择 "执行 wire"
 4. 等待 wire 命令执行完成
+
+![执行 Wire 命令](https://raw.githubusercontent.com/linkkong/kratos-generator/main/wire.png)
 
 ## 注意事项
 

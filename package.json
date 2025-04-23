@@ -2,12 +2,12 @@
   "name": "kratos-proto-generator",
   "displayName": "Kratos Proto Generator",
   "description": "Kratos 框架的 Proto 文件生成器",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "menglingkong",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git@github.com:linkkong/kratos-generator.git"
+    "url": "https://github.com/linkkong/kratos-generator"
   },
   "engines": {
     "vscode": "^1.85.0"
