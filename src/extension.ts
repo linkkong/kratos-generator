@@ -1,35 +1,26 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as cp from 'child_process';
 
 export function activate(context: vscode.ExtensionContext) {
     // 生成 proto 命令
     let generateProtoDisposable = vscode.commands.registerCommand('kratos-proto-generator.generateProto', async (uri: vscode.Uri) => {
         try {
-            const fileDir = path.dirname(uri.fsPath);
-            const fileName = path.basename(uri.fsPath);
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                throw new Error('No workspace folder found');
+            }
 
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: "Generating Proto",
-                cancellable: false
-            }, async (progress) => {
-                progress.report({ message: "Running kratos proto client command..." });
+            const relativePath = path.relative(workspaceFolder.uri.fsPath, uri.fsPath);
+            const protoPath = relativePath.replace(/\\/g, '/');
+            const command = `kratos proto client ${protoPath}`;
 
-                return new Promise<void>((resolve, reject) => {
-                    const command = `kratos proto client ${fileName}`;
-                    vscode.window.showInformationMessage(`执行目录: ${fileDir}\n执行命令: ${command}`);
-                    cp.exec(command, { cwd: fileDir }, (error, stdout, stderr) => {
-                        if (error) {
-                            vscode.window.showErrorMessage(`Error: ${error.message}`);
-                            reject(error);
-                        } else {
-                            vscode.window.showInformationMessage('Proto generated successfully!');
-                            resolve();
-                        }
-                    });
-                });
-            });
+            // 创建终端并执行命令
+            const terminal = vscode.window.createTerminal('Kratos Generator');
+            terminal.show();
+            terminal.sendText(`cd "${workspaceFolder.uri.fsPath}"`);
+            terminal.sendText(command);
+
+            vscode.window.showInformationMessage(`执行目录: ${workspaceFolder.uri.fsPath}\n执行命令: ${command}`);
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to generate proto: ${error}`);
         }
@@ -45,28 +36,15 @@ export function activate(context: vscode.ExtensionContext) {
 
             const relativePath = path.relative(workspaceFolder.uri.fsPath, uri.fsPath);
             const protoPath = relativePath.replace(/\\/g, '/');
+            const command = `kratos proto server ${protoPath} -t internal/service`;
 
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: "Generating Service",
-                cancellable: false
-            }, async (progress) => {
-                progress.report({ message: "Running kratos proto server command..." });
+            // 创建终端并执行命令
+            const terminal = vscode.window.createTerminal('Kratos Generator');
+            terminal.show();
+            terminal.sendText(`cd "${workspaceFolder.uri.fsPath}"`);
+            terminal.sendText(command);
 
-                return new Promise<void>((resolve, reject) => {
-                    const command = `kratos proto server ${protoPath} -t internal/service`;
-                    vscode.window.showInformationMessage(`执行目录: ${workspaceFolder.uri.fsPath}\n执行命令: ${command}`);
-                    cp.exec(command, { cwd: workspaceFolder.uri.fsPath }, (error, stdout, stderr) => {
-                        if (error) {
-                            vscode.window.showErrorMessage(`Error: ${error.message}`);
-                            reject(error);
-                        } else {
-                            vscode.window.showInformationMessage('Service generated successfully!');
-                            resolve();
-                        }
-                    });
-                });
-            });
+            vscode.window.showInformationMessage(`执行目录: ${workspaceFolder.uri.fsPath}\n执行命令: ${command}`);
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to generate service: ${error}`);
         }
@@ -80,27 +58,15 @@ export function activate(context: vscode.ExtensionContext) {
                 throw new Error('No workspace folder found');
             }
 
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: "Generating Config",
-                cancellable: false
-            }, async (progress) => {
-                progress.report({ message: "Running make config command..." });
+            const command = `make config`;
 
-                return new Promise<void>((resolve, reject) => {
-                    const command = `make config`;
-                    vscode.window.showInformationMessage(`执行目录: ${workspaceFolder.uri.fsPath}\n执行命令: ${command}`);
-                    cp.exec(command, { cwd: workspaceFolder.uri.fsPath }, (error, stdout, stderr) => {
-                        if (error) {
-                            vscode.window.showErrorMessage(`Error: ${error.message}`);
-                            reject(error);
-                        } else {
-                            vscode.window.showInformationMessage('Config generated successfully!');
-                            resolve();
-                        }
-                    });
-                });
-            });
+            // 创建终端并执行命令
+            const terminal = vscode.window.createTerminal('Kratos Generator');
+            terminal.show();
+            terminal.sendText(`cd "${workspaceFolder.uri.fsPath}"`);
+            terminal.sendText(command);
+
+            vscode.window.showInformationMessage(`执行目录: ${workspaceFolder.uri.fsPath}\n执行命令: ${command}`);
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to generate config: ${error}`);
         }
@@ -109,42 +75,20 @@ export function activate(context: vscode.ExtensionContext) {
     // 执行 wire 命令
     let runWireDisposable = vscode.commands.registerCommand('kratos-proto-generator.runWire', async (uri: vscode.Uri) => {
         try {
-            // 在这里设置断点，查看 uri 的值
-            console.log('Wire command triggered with URI:', uri.fsPath);
-            
             const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
             if (!workspaceFolder) {
                 throw new Error('No workspace folder found');
             }
 
-            // 获取目标目录路径
-            const targetDir = uri.fsPath;
+            const command = `wire`;
 
-            // 在这里设置断点，查看路径信息
-            console.log('Workspace folder:', workspaceFolder.uri.fsPath);
-            console.log('Target directory:', targetDir);
+            // 创建终端并执行命令
+            const terminal = vscode.window.createTerminal('Kratos Generator');
+            terminal.show();
+            terminal.sendText(`cd "${workspaceFolder.uri.fsPath}"`);
+            terminal.sendText(command);
 
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: "Running Wire",
-                cancellable: false
-            }, async (progress) => {
-                progress.report({ message: "Running wire command..." });
-
-                return new Promise<void>((resolve, reject) => {
-                    const command = `wire`;
-                    vscode.window.showInformationMessage(`执行目录: ${targetDir}\n执行命令: ${command}`);
-                    cp.exec(command, { cwd: targetDir }, (error, stdout, stderr) => {
-                        if (error) {
-                            vscode.window.showErrorMessage(`Error: ${error.message}`);
-                            reject(error);
-                        } else {
-                            vscode.window.showInformationMessage('Wire executed successfully!');
-                            resolve();
-                        }
-                    });
-                });
-            });
+            vscode.window.showInformationMessage(`执行目录: ${workspaceFolder.uri.fsPath}\n执行命令: ${command}`);
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to run wire: ${error}`);
         }
