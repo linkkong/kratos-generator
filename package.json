@@ -69,14 +69,18 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "release": "standard-version"
   },
   "devDependencies": {
-    "@types/vscode": "^1.80.0",
     "@types/node": "^16.11.7",
+    "@types/vscode": "^1.80.0",
     "@typescript-eslint/eslint-plugin": "^5.42.0",
     "@typescript-eslint/parser": "^5.42.0",
     "eslint": "^8.26.0",
+    "standard-version": "^9.5.0",
     "typescript": "^4.8.4"
   }
-} 
+}
