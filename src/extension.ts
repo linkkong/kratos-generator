@@ -17,7 +17,6 @@ export function activate(context: vscode.ExtensionContext) {
             // 创建终端并执行命令
             const terminal = vscode.window.createTerminal('Kratos Generator');
             terminal.show();
-            terminal.sendText(`cd "${workspaceFolder.uri.fsPath}"`);
             terminal.sendText(command);
 
             vscode.window.showInformationMessage(`执行目录: ${workspaceFolder.uri.fsPath}\n执行命令: ${command}`);
@@ -41,7 +40,6 @@ export function activate(context: vscode.ExtensionContext) {
             // 创建终端并执行命令
             const terminal = vscode.window.createTerminal('Kratos Generator');
             terminal.show();
-            terminal.sendText(`cd "${workspaceFolder.uri.fsPath}"`);
             terminal.sendText(command);
 
             vscode.window.showInformationMessage(`执行目录: ${workspaceFolder.uri.fsPath}\n执行命令: ${command}`);
@@ -63,7 +61,6 @@ export function activate(context: vscode.ExtensionContext) {
             // 创建终端并执行命令
             const terminal = vscode.window.createTerminal('Kratos Generator');
             terminal.show();
-            terminal.sendText(`cd "${workspaceFolder.uri.fsPath}"`);
             terminal.sendText(command);
 
             vscode.window.showInformationMessage(`执行目录: ${workspaceFolder.uri.fsPath}\n执行命令: ${command}`);
@@ -75,20 +72,20 @@ export function activate(context: vscode.ExtensionContext) {
     // 执行 wire 命令
     let runWireDisposable = vscode.commands.registerCommand('kratos-proto-generator.runWire', async (uri: vscode.Uri) => {
         try {
-            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-            if (!workspaceFolder) {
-                throw new Error('No workspace folder found');
+            if (!uri) {
+                throw new Error('请在目录上右键执行此命令');
             }
 
-            const command = `wire`;
+            const targetPath = uri.fsPath;
+            const command = `wire .`;
 
             // 创建终端并执行命令
             const terminal = vscode.window.createTerminal('Kratos Generator');
             terminal.show();
-            terminal.sendText(`cd "${workspaceFolder.uri.fsPath}"`);
+            terminal.sendText(`cd "${targetPath}"`);
             terminal.sendText(command);
 
-            vscode.window.showInformationMessage(`执行目录: ${workspaceFolder.uri.fsPath}\n执行命令: ${command}`);
+            vscode.window.showInformationMessage(`执行目录: ${targetPath}\n执行命令: ${command}`);
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to run wire: ${error}`);
         }
