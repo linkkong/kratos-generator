@@ -1,22 +1,23 @@
 {
   "name": "kratos-proto-generator",
   "displayName": "Kratos Proto Generator",
-  "description": "Kratos 框架的 Proto 文件生成器",
-  "version": "0.0.5",
-  "publisher": "menglingkong",
+  "description": "Generate proto files for Kratos framework",
+  "version": "0.0.1",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/linkkong/kratos-generator"
+    "url": "git@github.com:linkkong/kratos-generator.git"
   },
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.80.0"
   },
   "categories": [
     "Other"
   ],
   "activationEvents": [
-    "onCommand:kratos-proto-generator.generateProto"
+    "onCommand:kratos-proto-generator.generateProto",
+    "onCommand:kratos-proto-generator.openGrpcClient",
+    "onView:kratosGrpcExplorer"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -36,8 +37,35 @@
       {
         "command": "kratos-proto-generator.runWire",
         "title": "执行 wire"
+      },
+      {
+        "command": "kratos-proto-generator.openGrpcClient",
+        "title": "打开 gRPC 客户端",
+        "icon": "$(play)"
+      },
+      {
+        "command": "kratos-proto-generator.refreshGrpcServices",
+        "title": "刷新 gRPC 服务",
+        "icon": "$(refresh)"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "kratos-explorer",
+          "title": "Kratos 工具",
+          "icon": "$(compass)"
+        }
+      ]
+    },
+    "views": {
+      "kratos-explorer": [
+        {
+          "id": "kratosGrpcExplorer",
+          "name": "gRPC 服务"
+        }
+      ]
+    },
     "menus": {
       "explorer/context": [
         {
@@ -56,11 +84,33 @@
           "group": "navigation"
         },
         {
-          "when": "explorerResourceIsFolder && resourcePath =~ /cmd\\/[^/]+$/",
+          "when": "explorerResourceIsFolder && resourcePath =~ /cmd\\/[^\\/]+$/",
           "command": "kratos-proto-generator.runWire",
           "group": "navigation"
         }
+      ],
+      "view/title": [
+        {
+          "command": "kratos-proto-generator.openGrpcClient",
+          "when": "view == kratosGrpcExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "kratos-proto-generator.refreshGrpcServices",
+          "when": "view == kratosGrpcExplorer",
+          "group": "navigation"
+        }
       ]
+    },
+    "configuration": {
+      "title": "Kratos Proto Generator",
+      "properties": {
+        "kratosProtoGenerator.grpcDefaultHost": {
+          "type": "string",
+          "default": "localhost:9000",
+          "description": "gRPC 服务默认主机和端口"
+        }
+      }
     }
   },
   "scripts": {
@@ -69,10 +119,7 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js",
-    "package": "vsce package",
-    "publish": "vsce publish",
-    "release": "standard-version"
+    "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
     "@types/node": "^16.11.7",
@@ -80,7 +127,12 @@
     "@typescript-eslint/eslint-plugin": "^5.42.0",
     "@typescript-eslint/parser": "^5.42.0",
     "eslint": "^8.26.0",
-    "standard-version": "^9.5.0",
     "typescript": "^4.8.4"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.13.4",
+    "@grpc/proto-loader": "^0.7.15",
+    "axios": "^1.9.0",
+    "protobufjs": "^7.5.2"
   }
 }

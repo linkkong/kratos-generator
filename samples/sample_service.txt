@@ -1,0 +1,27 @@
+service UserService {
+  // 创建用户
+  rpc CreateUser (CreateUserRequest) returns (CreateUserResponse);
+  
+  // 获取用户信息
+  rpc GetUser (GetUserRequest) returns (GetUserResponse);
+  
+  // 更新用户信息
+  rpc UpdateUser (UpdateUserRequest) returns (UpdateUserResponse) {}
+  
+  // 删除用户
+  rpc DeleteUser (DeleteUserRequest) returns (DeleteUserResponse);
+  
+  // 带有选项的方法
+  rpc ListUsers (ListUsersRequest) returns (ListUsersResponse) {
+    option (google.api.http) = {
+      get: "/v1/users"
+    };
+  }
+  
+  // 跨行定义的方法
+  rpc 
+    SearchUsers 
+    (SearchUsersRequest) 
+    returns 
+    (SearchUsersResponse);
+}
