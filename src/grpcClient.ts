@@ -4,10 +4,12 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { generateRequestExample } from './protoParser';
-import { ServiceInfo, MethodInfo } from './protoTypes';
+import { ServiceInfo, MethodInfo, UrlInfo } from './protoTypes';
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import axios from 'axios';
+import { generateUrlInfo, validateHost, formatHost } from './urlGenerator';
+import { generateRequestTemplate, formatRequestTemplate } from './requestTemplateGenerator';
 
 export class GrpcClientPanel {
     public static currentPanel: GrpcClientPanel | undefined;
@@ -22,6 +24,7 @@ export class GrpcClientPanel {
     private currentMethod?: MethodInfo;
     private currentHost: string = 'localhost:9000';
     private requestMode: 'grpc' | 'http' = 'grpc';
+    private currentUrlInfo?: UrlInfo;
     
     public static createOrShow(extensionUri: vscode.Uri, services: ServiceInfo[], service?: ServiceInfo, method?: MethodInfo) {
         const column = vscode.window.activeTextEditor
@@ -85,7 +88,7 @@ export class GrpcClientPanel {
                         this.handleSelectMethod(message.methodIndex);
                         return;
                     case 'updateHost':
-                        this.currentHost = message.host;
+                        this.handleUpdateHost(message.host);
                         return;
                     case 'executeRequest':
                         this.executeRequest(message.request);
@@ -100,39 +103,61 @@ export class GrpcClientPanel {
         );
     }
     
+    // 处理主机地址更新
+    private async handleUpdateHost(host: string) {
+        this.currentHost = formatHost(host);
+        
+        // 重新生成URL信息
+        if (this.currentService && this.currentMethod) {
+            this.currentUrlInfo = generateUrlInfo(this.currentService, this.currentMethod, this.currentHost);
+            await this.update();
+        }
+    }
+    
     // 处理选择服务
     private handleSelectService(serviceIndex: number) {
         if (serviceIndex >= 0 && serviceIndex < this.services.length) {
             this.currentService = this.services[serviceIndex];
             this.currentMethod = undefined;
+            this.currentUrlInfo = undefined;
             this.update();
         }
     }
     
     // 处理选择方法
-    private handleSelectMethod(methodIndex: number) {
+    private async handleSelectMethod(methodIndex: number) {
         if (this.currentService && methodIndex >= 0 && methodIndex < this.currentService.methods.length) {
             this.currentMethod = this.currentService.methods[methodIndex];
-            this.update();
+            
+            // 生成URL信息
+            if (this.currentMethod) {
+                this.currentUrlInfo = generateUrlInfo(this.currentService, this.currentMethod, this.currentHost);
+            }
+            
+            await this.update();
         }
     }
     
     // 更新面板内容
-    private update() {
+    private async update() {
         if (this.panel.visible) {
-            this.panel.webview.html = this.getHtmlForWebview();
+            this.panel.webview.html = await this.getHtmlForWebview();
         }
     }
     
     // 更新当前方法
-    public updateMethod(service: ServiceInfo, method: MethodInfo) {
+    public async updateMethod(service: ServiceInfo, method: MethodInfo) {
         this.currentService = service;
         this.currentMethod = method;
-        this.update();
+        
+        // 生成URL信息
+        this.currentUrlInfo = generateUrlInfo(service, method, this.currentHost);
+        
+        await this.update();
     }
     
     // 生成 webview HTML
-    private getHtmlForWebview() {
+    private async getHtmlForWebview() {
         // 创建服务选择器选项
         const serviceOptions = this.services.map((service, index) => {
             const selected = this.currentService && this.currentService.name === service.name ? 'selected' : '';
@@ -148,10 +173,35 @@ export class GrpcClientPanel {
             return `<option value="${index}" ${selected}>${method.name}${httpInfo}</option>`;
         }).join('\n') : '';
         
-        // 获取请求示例
-        const requestExample = this.currentMethod 
-            ? generateRequestExample(this.currentMethod) 
-            : '{}';
+        // 生成URL信息HTML
+        const urlInfoHtml = this.currentUrlInfo ? `
+            <div class="url-info-container">
+                <div class="panel-header">📡 请求地址</div>
+                <div class="url-display">
+                    <div class="url-item">
+                        <strong>gRPC:</strong> <code class="url-text">${this.currentUrlInfo.grpcUrl}</code>
+                        <button class="copy-btn" onclick="copyToClipboard('${this.currentUrlInfo.grpcUrl}')">复制</button>
+                    </div>
+                    ${this.currentUrlInfo.httpUrl ? `
+                    <div class="url-item">
+                        <strong>HTTP:</strong> <code class="url-text">${this.currentUrlInfo.httpUrl}</code>
+                        <button class="copy-btn" onclick="copyToClipboard('${this.currentUrlInfo.httpUrl}')">复制</button>
+                    </div>` : ''}
+                </div>
+            </div>
+        ` : '';
+        
+        // 生成完整的请求参数模板
+        let requestTemplate = '{}';
+        if (this.currentMethod && this.currentService) {
+            try {
+                const template = await generateRequestTemplate(this.currentMethod, this.currentService.filePath);
+                requestTemplate = formatRequestTemplate(template);
+            } catch (error) {
+                console.warn('生成请求模板失败，使用默认模板:', error);
+                requestTemplate = generateRequestExample(this.currentMethod);
+            }
+        }
         
         // 检查当前方法是否支持 HTTP
         const supportsHttp = this.currentMethod && 
@@ -353,6 +403,57 @@ export class GrpcClientPanel {
                         margin: 0 10px;
                     }
                 }
+                
+                /* URL信息显示样式 */
+                .url-info-container {
+                    margin: 20px 0;
+                    padding: 15px;
+                    background-color: var(--vscode-editorWidget-background);
+                    border: 1px solid var(--vscode-input-border);
+                    border-radius: 5px;
+                }
+                
+                .url-display {
+                    margin-top: 10px;
+                }
+                
+                .url-item {
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: 10px;
+                    gap: 10px;
+                }
+                
+                .url-item:last-child {
+                    margin-bottom: 0;
+                }
+                
+                .url-text {
+                    background-color: var(--vscode-textCodeBlock-background);
+                    color: var(--vscode-textPreformat-foreground);
+                    padding: 4px 8px;
+                    border-radius: 3px;
+                    font-family: monospace;
+                    font-size: 12px;
+                    word-break: break-all;
+                    flex: 1;
+                    margin: 0;
+                }
+                
+                .copy-btn {
+                    background-color: var(--vscode-button-secondaryBackground);
+                    color: var(--vscode-button-secondaryForeground);
+                    border: 1px solid var(--vscode-button-border);
+                    padding: 4px 8px;
+                    font-size: 11px;
+                    border-radius: 3px;
+                    cursor: pointer;
+                    white-space: nowrap;
+                }
+                
+                .copy-btn:hover {
+                    background-color: var(--vscode-button-secondaryHoverBackground);
+                }
             </style>
         </head>
         <body>
@@ -393,10 +494,12 @@ export class GrpcClientPanel {
                     </div>
                 </div>
                 
+                ${urlInfoHtml}
+                
                 <div class="req-res-container">
                     <div class="request-container">
                         <div class="panel-header">请求参数 (JSON)</div>
-                        <textarea id="requestInput" placeholder="输入 JSON 格式的请求参数" ${!this.currentMethod ? 'disabled' : ''}>${requestExample}</textarea>
+                        <textarea id="requestInput" placeholder="输入 JSON 格式的请求参数" ${!this.currentMethod ? 'disabled' : ''}>${requestTemplate}</textarea>
                     </div>
                     
                     <div class="execute-container">
@@ -418,6 +521,16 @@ export class GrpcClientPanel {
             <script>
                 (function() {
                     const vscode = acquireVsCodeApi();
+                    
+                    // 复制到剪贴板功能
+                    window.copyToClipboard = function(text) {
+                        navigator.clipboard.writeText(text).then(() => {
+                            // 可以显示成功提示
+                            console.log('已复制到剪贴板:', text);
+                        }).catch(err => {
+                            console.error('复制失败:', err);
+                        });
+                    };
                     
                     // 获取元素
                     const hostInput = document.getElementById('hostInput');

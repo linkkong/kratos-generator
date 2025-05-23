@@ -26,10 +26,26 @@ export interface FieldInfo {
     isMap: boolean;
     isRepeated: boolean;
     nestedFields?: FieldInfo[];
+    isOptional?: boolean;
+    defaultValue?: any;
+    description?: string;
 }
 
 // 定义消息信息接口
 export interface MessageInfo {
     name: string;
     fields: FieldInfo[];
+}
+
+// 定义完整的请求参数结构（用于显示所有key）
+export interface RequestTemplate {
+    structure: any;
+    description: string;
+}
+
+// 定义URL信息接口
+export interface UrlInfo {
+    grpcUrl: string;
+    httpUrl?: string;
+    description: string;
 } 
