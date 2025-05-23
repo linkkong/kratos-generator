@@ -184,8 +184,19 @@ export class GrpcClientPanel {
                     </div>
                     ${this.currentUrlInfo.httpUrl ? `
                     <div class="url-item">
-                        <strong>HTTP:</strong> <code class="url-text">${this.currentUrlInfo.httpUrl}</code>
+                        <strong>HTTP示例:</strong> <code class="url-text">${this.currentUrlInfo.httpUrl}</code>
                         <button class="copy-btn" onclick="copyToClipboard('${this.currentUrlInfo.httpUrl}')">复制</button>
+                    </div>` : ''}
+                    ${this.currentUrlInfo.httpUrlTemplate ? `
+                    <div class="url-item">
+                        <strong>HTTP模板:</strong> <code class="url-text">${this.currentUrlInfo.httpUrlTemplate}</code>
+                        <button class="copy-btn" onclick="copyToClipboard('${this.currentUrlInfo.httpUrlTemplate}')">复制</button>
+                    </div>` : ''}
+                    ${this.currentUrlInfo.httpPathParams && this.currentUrlInfo.httpPathParams.length > 0 ? `
+                    <div class="url-params">
+                        <strong>路径参数:</strong> 
+                        <span class="params-list">${this.currentUrlInfo.httpPathParams.map(param => `<code>{${param}}</code>`).join(', ')}</span>
+                        <div class="params-note">💡 使用时请将路径参数替换为实际值</div>
                     </div>` : ''}
                 </div>
             </div>
@@ -453,6 +464,36 @@ export class GrpcClientPanel {
                 
                 .copy-btn:hover {
                     background-color: var(--vscode-button-secondaryHoverBackground);
+                }
+                
+                /* HTTP路径参数样式 */
+                .url-params {
+                    margin-top: 15px;
+                    padding: 10px;
+                    background-color: var(--vscode-editorWidget-background);
+                    border-left: 3px solid var(--vscode-button-background);
+                    border-radius: 3px;
+                }
+                
+                .params-list {
+                    margin-left: 10px;
+                }
+                
+                .params-list code {
+                    background-color: var(--vscode-textCodeBlock-background);
+                    color: var(--vscode-textPreformat-foreground);
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    font-family: monospace;
+                    font-size: 11px;
+                    margin: 0 2px;
+                }
+                
+                .params-note {
+                    margin-top: 5px;
+                    font-size: 11px;
+                    color: var(--vscode-descriptionForeground);
+                    font-style: italic;
                 }
             </style>
         </head>

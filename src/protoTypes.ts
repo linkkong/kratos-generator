@@ -47,5 +47,7 @@ export interface RequestTemplate {
 export interface UrlInfo {
     grpcUrl: string;
     httpUrl?: string;
+    httpUrlTemplate?: string;  // HTTP URL模板（包含占位符）
+    httpPathParams?: string[]; // HTTP路径参数列表
     description: string;
 } 

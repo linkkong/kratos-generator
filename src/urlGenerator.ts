@@ -14,16 +14,26 @@ export function generateUrlInfo(service: ServiceInfo, method: MethodInfo, host: 
     // 生成gRPC URL
     const grpcUrl = generateGrpcUrl(service, method, cleanHost);
     
-    // 生成HTTP URL（如果支持）
-    const httpUrl = method.hasHttpOption && method.httpPath ? 
-        generateHttpUrl(method, cleanHost) : undefined;
+    // 生成HTTP URL信息（如果支持）
+    let httpUrl: string | undefined;
+    let httpUrlTemplate: string | undefined;
+    let httpPathParams: string[] | undefined;
+    
+    if (method.hasHttpOption && method.httpPath) {
+        const httpVariants = generateHttpUrlVariants(method, cleanHost);
+        httpUrl = httpVariants.example;
+        httpUrlTemplate = httpVariants.template;
+        httpPathParams = httpVariants.pathParams.length > 0 ? httpVariants.pathParams : undefined;
+    }
     
     // 生成描述信息
-    const description = generateUrlDescription(service, method, grpcUrl, httpUrl);
+    const description = generateUrlDescription(service, method, grpcUrl, httpUrl, httpUrlTemplate, httpPathParams);
     
     return {
         grpcUrl,
         httpUrl,
+        httpUrlTemplate,
+        httpPathParams,
         description
     };
 }
@@ -62,6 +72,58 @@ function generateHttpUrl(method: MethodInfo, host: string): string {
 }
 
 /**
+ * 生成多种HTTP URL格式
+ * @param method 方法信息  
+ * @param host 主机地址
+ * @returns 包含多种格式的URL信息
+ */
+export function generateHttpUrlVariants(method: MethodInfo, host: string): {
+    template: string;
+    example: string;
+    pathParams: string[];
+} {
+    if (!method.httpPath) {
+        throw new Error('HTTP路径未定义');
+    }
+    
+    // 确保路径以/开头
+    const path = method.httpPath.startsWith('/') ? method.httpPath : `/${method.httpPath}`;
+    
+    // 提取路径参数
+    const pathParams = extractPathParams(path);
+    
+    // 生成模板URL（保持占位符）
+    const templateUrl = `http://${host}${path}`;
+    
+    // 生成示例URL（替换为示例值）
+    const examplePath = processHttpPath(path);
+    const exampleUrl = `http://${host}${examplePath}`;
+    
+    return {
+        template: templateUrl,
+        example: exampleUrl,
+        pathParams
+    };
+}
+
+/**
+ * 提取路径参数
+ * @param path HTTP路径
+ * @returns 路径参数数组
+ */
+function extractPathParams(path: string): string[] {
+    const params: string[] = [];
+    const regex = /\{([^}]+)\}/g;
+    let match;
+    
+    while ((match = regex.exec(path)) !== null) {
+        params.push(match[1]);
+    }
+    
+    return params;
+}
+
+/**
  * 处理HTTP路径中的参数占位符
  * @param path 原始路径
  * @returns 处理后的路径
@@ -69,15 +131,30 @@ function generateHttpUrl(method: MethodInfo, host: string): string {
 function processHttpPath(path: string): string {
     // 将gRPC HTTP API中的路径变量格式 {variable} 转换为示例值
     return path.replace(/\{([^}]+)\}/g, (match, varName) => {
-        // 根据变量名生成示例值
-        if (varName.toLowerCase().includes('id')) {
+        // 根据变量名生成更合适的示例值
+        const lowerVarName = varName.toLowerCase();
+        
+        if (lowerVarName.includes('id')) {
             return '123';
-        } else if (varName.toLowerCase().includes('name')) {
+        } else if (lowerVarName.includes('name')) {
             return 'example-name';
-        } else if (varName.toLowerCase().includes('code')) {
+        } else if (lowerVarName.includes('code')) {
             return 'ABC123';
+        } else if (lowerVarName.includes('uuid') || lowerVarName.includes('guid')) {
+            return '550e8400-e29b-41d4-a716-446655440000';
+        } else if (lowerVarName.includes('email')) {
+            return 'user@example.com';
+        } else if (lowerVarName.includes('phone')) {
+            return '13800138000';
+        } else if (lowerVarName.includes('version') || lowerVarName.includes('ver')) {
+            return 'v1';
+        } else if (lowerVarName.includes('type') || lowerVarName.includes('category')) {
+            return 'default';
+        } else if (lowerVarName.includes('status')) {
+            return 'active';
         } else {
-            return `{${varName}}`;
+            // 对于未知的参数，保持原有的占位符格式，但添加示例前缀
+            return `example-${varName}`;
         }
     });
 }
@@ -88,13 +165,17 @@ function processHttpPath(path: string): string {
  * @param method 方法信息
  * @param grpcUrl gRPC URL
  * @param httpUrl HTTP URL（可选）
+ * @param httpUrlTemplate HTTP URL模板（可选）
+ * @param httpPathParams HTTP URL路径参数（可选）
  * @returns 描述字符串
  */
 function generateUrlDescription(
     service: ServiceInfo, 
     method: MethodInfo, 
     grpcUrl: string, 
-    httpUrl?: string
+    httpUrl?: string,
+    httpUrlTemplate?: string,
+    httpPathParams?: string[]
 ): string {
     const lines = [];
     
@@ -111,6 +192,14 @@ function generateUrlDescription(
         if (method.httpBody) {
             lines.push(`    Body参数: ${method.httpBody}`);
         }
+    }
+    
+    if (httpUrlTemplate && httpPathParams && httpPathParams.length > 0) {
+        lines.push('');
+        lines.push('HTTP URL变体:');
+        lines.push(`  • 模板: ${httpUrlTemplate}`);
+        lines.push(`  • 示例: ${httpUrl}`);
+        lines.push(`  • 路径参数: ${httpPathParams.join(', ')}`);
     }
     
     return lines.join('\n');
