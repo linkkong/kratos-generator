@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('kratos-proto-generator.openGrpcClient', async () => {
             try {
                 const services = await scanAndParseProtoFiles();
-                GrpcClientPanel.createOrShow(context.extensionUri, services);
+                GrpcClientPanel.createOrShow(context.extensionUri, services, context);
             } catch (error) {
                 vscode.window.showErrorMessage(`打开 gRPC 客户端失败: ${error}`);
             }

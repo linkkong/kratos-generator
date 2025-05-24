@@ -109,6 +109,11 @@
           "type": "string",
           "default": "localhost:9000",
           "description": "gRPC 服务默认主机和端口"
+        },
+        "kratosProtoGenerator.httpDefaultHost": {
+          "type": "string",
+          "default": "localhost:8000",
+          "description": "HTTP 服务默认主机和端口"
         }
       }
     }

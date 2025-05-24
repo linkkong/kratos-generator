@@ -21,7 +21,7 @@ export function generateUrlInfo(service: ServiceInfo, method: MethodInfo, host: 
     
     if (method.hasHttpOption && method.httpPath) {
         const httpVariants = generateHttpUrlVariants(method, cleanHost);
-        httpUrl = httpVariants.example;
+        httpUrl = httpVariants.template;
         httpUrlTemplate = httpVariants.template;
         httpPathParams = httpVariants.pathParams.length > 0 ? httpVariants.pathParams : undefined;
     }

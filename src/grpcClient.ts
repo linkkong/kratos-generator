@@ -17,6 +17,7 @@ export class GrpcClientPanel {
     
     private readonly panel: vscode.WebviewPanel;
     private readonly extensionUri: vscode.Uri;
+    private readonly context: vscode.ExtensionContext;
     private disposables: vscode.Disposable[] = [];
     
     private services: ServiceInfo[] = [];
@@ -26,7 +27,7 @@ export class GrpcClientPanel {
     private requestMode: 'grpc' | 'http' = 'grpc';
     private currentUrlInfo?: UrlInfo;
     
-    public static createOrShow(extensionUri: vscode.Uri, services: ServiceInfo[], service?: ServiceInfo, method?: MethodInfo) {
+    public static createOrShow(extensionUri: vscode.Uri, services: ServiceInfo[], context: vscode.ExtensionContext, service?: ServiceInfo, method?: MethodInfo) {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
@@ -54,7 +55,7 @@ export class GrpcClientPanel {
             }
         );
         
-        GrpcClientPanel.currentPanel = new GrpcClientPanel(panel, extensionUri, services);
+        GrpcClientPanel.currentPanel = new GrpcClientPanel(panel, extensionUri, services, context);
         
         // 如果提供了服务和方法，设置为当前方法
         if (service && method) {
@@ -62,14 +63,14 @@ export class GrpcClientPanel {
         }
     }
     
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, services: ServiceInfo[]) {
+    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, services: ServiceInfo[], context: vscode.ExtensionContext) {
         this.panel = panel;
         this.extensionUri = extensionUri;
+        this.context = context;
         this.services = services;
         
-        // 从配置中获取默认主机
-        const config = vscode.workspace.getConfiguration('kratosProtoGenerator');
-        this.currentHost = config.get<string>('grpcDefaultHost') || 'localhost:9000';
+        // 获取项目维度的缓存主机地址
+        this.currentHost = this.getCachedHost();
         
         // 设置 webview 内容
         this.update();
@@ -90,11 +91,14 @@ export class GrpcClientPanel {
                     case 'updateHost':
                         this.handleUpdateHost(message.host);
                         return;
+                    case 'updateHttpUrlParams':
+                        this.handleUpdateHttpUrlParams(message.requestData);
+                        return;
                     case 'executeRequest':
                         this.executeRequest(message.request);
                         return;
                     case 'updateRequestMode':
-                        this.requestMode = message.mode;
+                        this.handleUpdateRequestMode(message.mode);
                         return;
                 }
             },
@@ -103,9 +107,73 @@ export class GrpcClientPanel {
         );
     }
     
+    // 处理HTTP URL参数更新
+    private handleUpdateHttpUrlParams(requestData: any) {
+        console.log('收到URL更新请求，参数:', requestData);
+        console.log('当前服务:', this.currentService?.name);
+        console.log('当前方法:', this.currentMethod?.name);
+        console.log('HTTP路径:', this.currentMethod?.httpPath);
+        
+        if (!this.currentService || !this.currentMethod || !this.currentMethod.httpPath) {
+            console.log('条件不满足，跳过URL更新');
+            return;
+        }
+        
+        // 生成带有实际参数值的HTTP URL
+        const updatedHttpUrl = this.generateDynamicHttpUrl(requestData);
+        console.log('生成的动态URL:', updatedHttpUrl);
+        
+        if (updatedHttpUrl && this.currentUrlInfo) {
+            // 更新当前URL信息
+            this.currentUrlInfo.httpUrl = updatedHttpUrl;
+            console.log('更新后的URL信息:', this.currentUrlInfo);
+            
+            // 只更新URL显示部分，不重新生成整个页面
+            this.updateUrlDisplay();
+        }
+    }
+    
+    // 生成动态HTTP URL（根据请求参数替换路径参数）
+    private generateDynamicHttpUrl(requestData: any): string | null {
+        if (!this.currentMethod || !this.currentMethod.httpPath) {
+            return null;
+        }
+        
+        try {
+            const cleanHost = this.currentHost.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            let path = this.currentMethod.httpPath.startsWith('/') ? 
+                this.currentMethod.httpPath : `/${this.currentMethod.httpPath}`;
+            
+            // 替换路径中的参数
+            path = path.replace(/\{([^}]+)\}/g, (match, paramName) => {
+                // 从请求数据中查找对应的参数值
+                if (requestData && requestData[paramName] !== undefined) {
+                    return encodeURIComponent(String(requestData[paramName]));
+                }
+                return match; // 如果找不到参数值，保持原样
+            });
+            
+            return `http://${cleanHost}${path}`;
+        } catch (error) {
+            return null;
+        }
+    }
+    
+    // 更新URL显示
+    private updateUrlDisplay() {
+        // 发送消息到webview更新URL显示
+        this.panel.webview.postMessage({
+            type: 'updateUrlDisplay',
+            urlInfo: this.currentUrlInfo
+        });
+    }
+    
     // 处理主机地址更新
     private async handleUpdateHost(host: string) {
         this.currentHost = formatHost(host);
+        
+        // 缓存主机地址到项目维度
+        this.cacheHost(this.currentHost);
         
         // 重新生成URL信息
         if (this.currentService && this.currentMethod) {
@@ -186,17 +254,7 @@ export class GrpcClientPanel {
                     <div class="url-item">
                         <strong>HTTP示例:</strong> <code class="url-text">${this.currentUrlInfo.httpUrl}</code>
                         <button class="copy-btn" onclick="copyToClipboard('${this.currentUrlInfo.httpUrl}')">复制</button>
-                    </div>` : ''}
-                    ${this.currentUrlInfo.httpUrlTemplate ? `
-                    <div class="url-item">
-                        <strong>HTTP模板:</strong> <code class="url-text">${this.currentUrlInfo.httpUrlTemplate}</code>
-                        <button class="copy-btn" onclick="copyToClipboard('${this.currentUrlInfo.httpUrlTemplate}')">复制</button>
-                    </div>` : ''}
-                    ${this.currentUrlInfo.httpPathParams && this.currentUrlInfo.httpPathParams.length > 0 ? `
-                    <div class="url-params">
-                        <strong>路径参数:</strong> 
-                        <span class="params-list">${this.currentUrlInfo.httpPathParams.map(param => `<code>{${param}}</code>`).join(', ')}</span>
-                        <div class="params-note">💡 使用时请将路径参数替换为实际值</div>
+                        <span class="dynamic-hint">🔄 动态更新</span>
                     </div>` : ''}
                 </div>
             </div>
@@ -495,6 +553,18 @@ export class GrpcClientPanel {
                     color: var(--vscode-descriptionForeground);
                     font-style: italic;
                 }
+                
+                /* 动态更新提示样式 */
+                .dynamic-hint {
+                    margin-left: 10px;
+                    font-size: 10px;
+                    color: var(--vscode-descriptionForeground);
+                    background-color: var(--vscode-badge-background);
+                    color: var(--vscode-badge-foreground);
+                    padding: 2px 6px;
+                    border-radius: 12px;
+                    white-space: nowrap;
+                }
             </style>
         </head>
         <body>
@@ -583,6 +653,26 @@ export class GrpcClientPanel {
                     const loadingIndicator = document.getElementById('loading');
                     const requestModeRadios = document.getElementsByName('requestMode');
                     
+                    // 监听请求参数输入变化，动态更新HTTP URL
+                    requestInput.addEventListener('input', () => {
+                        updateHttpUrlWithParams();
+                    });
+                    
+                    // 动态更新HTTP URL中的路径参数
+                    function updateHttpUrlWithParams() {
+                        try {
+                            const requestJson = JSON.parse(requestInput.value);
+                            console.log('发送URL更新请求，参数:', requestJson);
+                            vscode.postMessage({
+                                command: 'updateHttpUrlParams',
+                                requestData: requestJson
+                            });
+                        } catch (e) {
+                            // JSON解析失败时不更新URL
+                            console.log('JSON解析失败，不更新URL:', e.message);
+                        }
+                    }
+                    
                     // 监听服务选择变更
                     serviceSelect.addEventListener('change', () => {
                         vscode.postMessage({
@@ -651,8 +741,65 @@ export class GrpcClientPanel {
                             responseOutput.textContent = message.content;
                             // 隐藏加载指示器
                             loadingIndicator.style.display = 'none';
+                        } else if (message.type === 'updateUrlDisplay') {
+                            // 更新URL显示
+                            updateUrlDisplayInPage(message.urlInfo);
+                        } else if (message.type === 'updateHost') {
+                            // 更新主机地址输入框
+                            hostInput.value = message.host;
+                            console.log('自动更新主机地址输入框:', message.host);
                         }
                     });
+                    
+                    // 更新页面中的URL显示
+                    function updateUrlDisplayInPage(urlInfo) {
+                        console.log('更新页面URL显示:', urlInfo);
+                        if (!urlInfo) return;
+                        
+                        // 使用更简单可靠的方式找到HTTP示例URL元素
+                        const urlContainer = document.querySelector('.url-display');
+                        if (!urlContainer) {
+                            console.log('未找到URL容器');
+                            return;
+                        }
+                        
+                        // 直接查找所有url-text元素，然后找到对应的元素
+                        const urlTextElements = urlContainer.querySelectorAll('.url-text');
+                        console.log('找到的URL文本元素数量:', urlTextElements.length);
+                        
+                        // 遍历所有URL项目，找到HTTP示例对应的元素
+                        const urlItems = urlContainer.querySelectorAll('.url-item');
+                        for (let i = 0; i < urlItems.length; i++) {
+                            const strongElement = urlItems[i].querySelector('strong');
+                            if (strongElement && strongElement.textContent.trim().includes('HTTP示例:')) {
+                                const urlTextElement = urlItems[i].querySelector('.url-text');
+                                if (urlTextElement && urlInfo.httpUrl) {
+                                    console.log('找到HTTP示例元素，更新URL:', urlInfo.httpUrl);
+                                    
+                                    // 添加更新动画效果
+                                    urlTextElement.style.transition = 'background-color 0.3s ease';
+                                    urlTextElement.style.backgroundColor = 'var(--vscode-button-background)';
+                                    
+                                    // 更新文本
+                                    urlTextElement.textContent = urlInfo.httpUrl;
+                                    
+                                    // 0.3秒后恢复原来的背景色
+                                    setTimeout(() => {
+                                        urlTextElement.style.backgroundColor = '';
+                                    }, 300);
+                                    
+                                    // 更新复制按钮
+                                    const copyBtn = urlItems[i].querySelector('.copy-btn');
+                                    if (copyBtn) {
+                                        copyBtn.setAttribute('onclick', 'copyToClipboard(\\'' + urlInfo.httpUrl + '\\')');
+                                    }
+                                    return;
+                                }
+                            }
+                        }
+                        
+                        console.log('未找到HTTP示例元素');
+                    }
                 })();
             </script>
         </body>
@@ -665,6 +812,13 @@ export class GrpcClientPanel {
             this.showResponse('错误: 未选择服务或方法');
             return;
         }
+        
+        // 打印请求开始信息
+        console.log('=== 🎯 开始执行请求 ===');
+        console.log(`服务: ${this.currentService.name}`);
+        console.log(`方法: ${this.currentMethod.name}`);
+        console.log(`请求模式: ${this.requestMode.toUpperCase()}`);
+        console.log(`主机: ${this.currentHost}`);
         
         try {
             let output: string;
@@ -679,7 +833,10 @@ export class GrpcClientPanel {
             
             // 显示响应
             this.showResponse(output);
+            console.log('=== ✅ 请求执行完成 ===');
         } catch (error: any) {
+            console.log('=== ❌ 请求执行失败 ===');
+            console.error('错误详情:', error);
             this.showResponse(`执行请求时出错: ${error.message}`);
         }
     }
@@ -767,6 +924,10 @@ export class GrpcClientPanel {
             
             console.log(`创建 gRPC 客户端: ${this.currentHost}`);
             
+            // 打印完整的 gRPC 请求 URL
+            const grpcUrl = `grpc://${this.currentHost}/${serviceName}/${methodName}`;
+            console.log(`🚀 发起 gRPC 请求 URL: ${grpcUrl}`);
+            
             // 创建客户端
             const client = new ServiceClass(this.currentHost, grpc.credentials.createInsecure());
             
@@ -804,6 +965,23 @@ export class GrpcClientPanel {
         try {
             const httpMethod = this.currentMethod.httpMethod.toLowerCase();
             let url = `http://${this.currentHost}${this.currentMethod.httpPath}`;
+            
+            // 替换路径中的参数
+            const originalUrl = url;
+            url = url.replace(/\{([^}]+)\}/g, (match, paramName) => {
+                if (requestData && requestData[paramName] !== undefined) {
+                    return encodeURIComponent(String(requestData[paramName]));
+                }
+                return match;
+            });
+            
+            // 打印请求URL信息
+            console.log(`🚀 发起 HTTP 请求:`);
+            console.log(`   方法: ${httpMethod.toUpperCase()}`);
+            console.log(`   原始URL: ${originalUrl}`);
+            console.log(`   实际URL: ${url}`);
+            console.log(`   请求数据:`, requestData);
+            
             const headers = { 'Content-Type': 'application/json' };
             
             let response;
@@ -939,9 +1117,118 @@ export class GrpcClientPanel {
             }
         }
     }
+    
+    // 获取项目维度的缓存主机地址（根据请求模式）
+    private getCachedHost(mode?: 'grpc' | 'http'): string {
+        // 使用传入的模式或当前模式
+        const requestMode = mode || this.requestMode;
+        
+        // 获取工作区路径作为唯一标识
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {
+            // 没有工作区，使用全局配置
+            const config = vscode.workspace.getConfiguration('kratosProtoGenerator');
+            if (requestMode === 'http') {
+                return config.get<string>('httpDefaultHost') || 'localhost:8000';
+            } else {
+                return config.get<string>('grpcDefaultHost') || 'localhost:9000';
+            }
+        }
+        
+        const workspacePath = workspaceFolder.uri.fsPath;
+        const cacheKey = `grpcHost_${requestMode}_${Buffer.from(workspacePath).toString('base64')}`;
+        
+        // 尝试从工作区状态获取缓存的主机地址
+        const cachedHost = this.context.workspaceState.get<string>(cacheKey);
+        if (cachedHost) {
+            console.log(`从缓存读取${requestMode.toUpperCase()}主机地址: ${cachedHost} (项目: ${workspacePath})`);
+            return cachedHost;
+        }
+        
+        // 没有缓存，使用模式对应的默认值
+        const config = vscode.workspace.getConfiguration('kratosProtoGenerator');
+        let defaultHost: string;
+        if (requestMode === 'http') {
+            defaultHost = config.get<string>('httpDefaultHost') || 'localhost:8000';
+        } else {
+            defaultHost = config.get<string>('grpcDefaultHost') || 'localhost:9000';
+        }
+        
+        console.log(`使用默认${requestMode.toUpperCase()}主机地址: ${defaultHost} (项目: ${workspacePath})`);
+        return defaultHost;
+    }
+    
+    // 缓存主机地址到项目维度（根据请求模式）
+    private cacheHost(host: string, mode?: 'grpc' | 'http'): void {
+        // 使用传入的模式或当前模式
+        const requestMode = mode || this.requestMode;
+        
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {
+            return; // 没有工作区，不缓存
+        }
+        
+        const workspacePath = workspaceFolder.uri.fsPath;
+        const cacheKey = `grpcHost_${requestMode}_${Buffer.from(workspacePath).toString('base64')}`;
+        
+        // 保存到工作区状态
+        this.context.workspaceState.update(cacheKey, host);
+        console.log(`缓存${requestMode.toUpperCase()}主机地址: ${host} (项目: ${workspacePath})`);
+    }
+    
+    // 清理主机地址缓存（可用于调试或重置）
+    private clearHostCache(mode?: 'grpc' | 'http'): void {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {
+            return; // 没有工作区，无需清理
+        }
+        
+        const workspacePath = workspaceFolder.uri.fsPath;
+        
+        if (mode) {
+            // 清理指定模式的缓存
+            const cacheKey = `grpcHost_${mode}_${Buffer.from(workspacePath).toString('base64')}`;
+            this.context.workspaceState.update(cacheKey, undefined);
+            console.log(`清理${mode.toUpperCase()}主机地址缓存 (项目: ${workspacePath})`);
+        } else {
+            // 清理所有模式的缓存
+            const grpcCacheKey = `grpcHost_grpc_${Buffer.from(workspacePath).toString('base64')}`;
+            const httpCacheKey = `grpcHost_http_${Buffer.from(workspacePath).toString('base64')}`;
+            this.context.workspaceState.update(grpcCacheKey, undefined);
+            this.context.workspaceState.update(httpCacheKey, undefined);
+            console.log(`清理所有主机地址缓存 (项目: ${workspacePath})`);
+        }
+    }
+    
+    // 处理请求模式更新
+    private async handleUpdateRequestMode(mode: 'grpc' | 'http') {
+        const oldMode = this.requestMode;
+        this.requestMode = mode;
+        
+        console.log(`切换请求模式: ${oldMode.toUpperCase()} -> ${mode.toUpperCase()}`);
+        
+        // 自动切换到对应模式的主机地址
+        const newHost = this.getCachedHost(mode);
+        if (newHost !== this.currentHost) {
+            console.log(`自动切换主机地址: ${this.currentHost} -> ${newHost}`);
+            this.currentHost = newHost;
+        }
+        
+        // 重新生成URL信息
+        if (this.currentService && this.currentMethod) {
+            this.currentUrlInfo = generateUrlInfo(this.currentService, this.currentMethod, this.currentHost);
+            await this.update();
+        }
+        
+        // 发送主机地址更新消息到webview
+        this.panel.webview.postMessage({
+            type: 'updateHost',
+            host: this.currentHost
+        });
+    }
 }
 
 // 打开 gRPC 方法
 export function openGrpcMethod(service: ServiceInfo, method: MethodInfo, context: vscode.ExtensionContext, services: ServiceInfo[]) {
-    GrpcClientPanel.createOrShow(context.extensionUri, services, service, method);
+    GrpcClientPanel.createOrShow(context.extensionUri, services, context, service, method);
 } 

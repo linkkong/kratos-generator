@@ -18,6 +18,13 @@ service UserService {
     };
   }
   
+  // 带有路径参数的方法 (测试用例)
+  rpc SayHello (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      get: "/helloworld/{name}"
+    };
+  }
+  
   // 跨行定义的方法
   rpc 
     SearchUsers 
