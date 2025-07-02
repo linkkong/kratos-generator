@@ -1,8 +1,9 @@
 {
   "name": "kratos-proto-generator",
-  "displayName": "Kratos Proto Generator",
+  "displayName": "Kratos Proto Generator", 
   "description": "Generate proto files for Kratos framework",
   "version": "0.0.8",
+  "publisher": "linkkong",
   "license": "MIT",
   "repository": {
     "type": "git",
