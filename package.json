@@ -2,7 +2,7 @@
   "name": "kratos-proto-generator",
   "displayName": "Kratos Proto Generator",
   "description": "Generate proto files for Kratos framework",
-  "version": "0.0.1",
+  "version": "0.0.8",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -17,7 +17,8 @@
   "activationEvents": [
     "onCommand:kratos-proto-generator.generateProto",
     "onCommand:kratos-proto-generator.openGrpcClient",
-    "onView:kratosGrpcExplorer"
+    "onView:kratosGrpcExplorer",
+    "onLanguage:go"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -47,6 +48,34 @@
         "command": "kratos-proto-generator.refreshGrpcServices",
         "title": "刷新 gRPC 服务",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "kratos-proto-generator.goToImplementationMethod",
+        "title": "跳转到实现方法"
+      },
+      {
+        "command": "kratos-proto-generator.goToInterfaceMethod",
+        "title": "跳转到接口方法"
+      },
+      {
+        "command": "kratos-proto-generator.goToStruct",
+        "title": "跳转到结构体"
+      },
+      {
+        "command": "kratos-proto-generator.showImplementationMethods",
+        "title": "显示所有实现方法"
+      },
+      {
+        "command": "kratos-proto-generator.showInterfaceMethods",
+        "title": "显示所有接口方法"
+      },
+      {
+        "command": "kratos-proto-generator.showAllImplementations",
+        "title": "显示所有实现"
+      },
+      {
+        "command": "kratos-proto-generator.refreshGoJumpCache",
+        "title": "刷新Go跳转缓存"
       }
     ],
     "viewsContainers": {
@@ -100,7 +129,9 @@
           "when": "view == kratosGrpcExplorer",
           "group": "navigation"
         }
-      ]
+      ],
+
+      "commandPalette": []
     },
     "configuration": {
       "title": "Kratos Proto Generator",
@@ -114,6 +145,16 @@
           "type": "string",
           "default": "localhost:8000",
           "description": "HTTP 服务默认主机和端口"
+        },
+        "kratosProtoGenerator.enableGoJump": {
+          "type": "boolean",
+          "default": true,
+          "description": "启用 Go 接口和实现之间的跳转功能"
+        },
+        "kratosProtoGenerator.goJumpCacheSize": {
+          "type": "number",
+          "default": 1000,
+          "description": "Go 跳转功能的缓存大小"
         }
       }
     }

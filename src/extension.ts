@@ -5,10 +5,20 @@ import { registerGrpcExplorer } from './grpcExplorer';
 import { scanAndParseProtoFiles } from './protoParser';
 import { ServiceInfo, MethodInfo } from './protoTypes';
 import { GrpcClientPanel, openGrpcMethod } from './grpcClient';
+import { GoJumpManager } from './goJump';
+
+
+// 全局变量存储Go跳转管理器实例
+let goJumpManager: GoJumpManager | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
+
     // 注册 gRPC 服务资源管理器
     const grpcServiceProvider = registerGrpcExplorer(context);
+    
+    // 初始化Go跳转功能
+    goJumpManager = new GoJumpManager(context);
+    goJumpManager.activate();
     
     // 注册打开 gRPC 客户端命令
     context.subscriptions.push(
@@ -184,4 +194,10 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(generateProtoDisposable, generateServiceDisposable, generateConfigDisposable, runWireDisposable);
 }
 
-export function deactivate() {} 
+export function deactivate() {
+    // 停用Go跳转功能
+    if (goJumpManager) {
+        goJumpManager.deactivate();
+        goJumpManager = undefined;
+    }
+} 
