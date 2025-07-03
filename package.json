@@ -3,7 +3,7 @@
   "displayName": "Kratos Proto Generator", 
   "description": "Generate proto files for Kratos framework",
   "version": "0.0.8",
-  "publisher": "linkkong",
+  "publisher": "menglingkong",
   "license": "MIT",
   "repository": {
     "type": "git",
